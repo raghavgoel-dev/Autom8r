@@ -88,6 +88,14 @@ _QUERY_VOLUME_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Demo city vocabulary (India-focused, matching the fictional customer base).
+_CITIES: tuple[str, ...] = (
+    "Mumbai", "Delhi", "Bengaluru", "Bangalore", "Chennai", "Hyderabad",
+    "Pune", "Jaipur", "Gurgaon", "Gurugram", "Kolkata", "Ahmedabad",
+    "Noida", "Lucknow", "Chandigarh", "Indore", "Kochi", "Coimbatore",
+    "Nagpur", "Surat",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ExtractedLead:
@@ -230,6 +238,15 @@ def extract_requirement(text: str) -> str | None:
     return None
 
 
+def extract_city(text: str) -> str | None:
+    """First known city name mentioned in the text."""
+    lowered = text.lower()
+    for city in _CITIES:
+        if city.lower() in lowered:
+            return city
+    return None
+
+
 def extract_lead_fields(text: str) -> ExtractedLead:
     """Run every extractor over one message and bundle the results."""
     name, phone = extract_name_phone_pair(text)
@@ -237,6 +254,7 @@ def extract_lead_fields(text: str) -> ExtractedLead:
         name=name or extract_name(text),
         phone=phone,
         email=extract_email(text),
+        city=extract_city(text),
         business_type=extract_business_type(text),
         budget=extract_budget(text),
         requirement=extract_requirement(text),
