@@ -1,0 +1,49 @@
+# Autom8r .gitignore
+
+# --- Secrets & environment (NEVER commit) ---
+.env
+.env.local
+*.env
+!.env.example
+credentials/
+*-service-account*.json
+service-account*.json
+gcp-credentials*.json
+
+# --- Databases (local runtime artifacts) ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+# NOTE: data/knowledge/ and data/samples/ ARE committed (demo content).
+# Only runtime database files are ignored.
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Agent tooling internals ---
+.omo/
