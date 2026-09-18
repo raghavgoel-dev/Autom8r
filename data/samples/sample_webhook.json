@@ -1,0 +1,12 @@
+{
+  "event": "lead.created",
+  "source": "website-demo",
+  "timestamp": "2026-09-19T10:30:00Z",
+  "event_id": "evt-demo-0001",
+  "data": {
+    "name": "Aman",
+    "phone": "9999999999",
+    "requirement": "customer support automation",
+    "city": "Gurgaon"
+  }
+}
