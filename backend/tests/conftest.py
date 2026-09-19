@@ -13,6 +13,9 @@ os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP_DIR / 'test.db').as_posix()}"
 os.environ["ADMIN_TOKEN"] = "test-admin-token"
 os.environ["WEBHOOK_SECRET"] = "test-webhook-secret"
 os.environ["LLM_ENABLED"] = "false"
+# Point the app's MCP client at a guaranteed-dead port so the suite never
+# depends on whether a dev MCP server happens to be running on :8001.
+os.environ["MCP_SERVER_URL"] = "http://127.0.0.1:9/mcp"
 
 import pytest
 from fastapi.testclient import TestClient
