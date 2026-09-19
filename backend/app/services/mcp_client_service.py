@@ -54,7 +54,7 @@ class MCPClientService:
                     name=tool.name,
                     description=tool.description or "",
                     read_only=bool(annotations and annotations.read_only_hint),
-                    input_schema=dict(tool.inputSchema),
+                    input_schema=dict(tool.input_schema),
                 )
             )
         return tools
