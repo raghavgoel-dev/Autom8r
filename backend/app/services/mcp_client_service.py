@@ -13,6 +13,7 @@ Every failure becomes a typed error (MCPUnavailableError / MCPToolError) so
 the agent can degrade gracefully and routes return clean 503/502 envelopes.
 """
 from dataclasses import dataclass
+from typing import Protocol
 
 from mcp.client import Client
 
@@ -31,6 +32,20 @@ class MCPToolInfo:
     description: str
     read_only: bool
     input_schema: dict[str, JSONValue]
+
+
+class MCPClientLike(Protocol):
+    """The agent's view of any MCP client (real service or test fake)."""
+
+    async def list_tools(self) -> list[MCPToolInfo]:
+        """Discover available tools."""
+        ...
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, JSONValue]
+    ) -> dict[str, JSONValue]:
+        """Invoke a tool and return its structured result."""
+        ...
 
 
 class MCPClientService:

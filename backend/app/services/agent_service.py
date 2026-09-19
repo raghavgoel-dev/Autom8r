@@ -38,7 +38,7 @@ from app.services.llm_service import (
     accumulate_extraction,
     load_prompts,
 )
-from app.services.mcp_client_service import MCPClientService
+from app.services.mcp_client_service import MCPClientLike
 from app.services.retrieval_service import RetrievalService
 from app.utils.errors import MCPToolError, MCPUnavailableError
 
@@ -57,7 +57,7 @@ class AgentService:
         self,
         settings: Settings,
         llm: LLMService | OpenAILLMService,
-        mcp: MCPClientService,
+        mcp: MCPClientLike,
         retrieval: RetrievalService,
     ) -> None:
         self._settings = settings
