@@ -69,40 +69,43 @@ class AgentService:
         """Process one user message end to end."""
         message = request.message
         results = self._retrieval.retrieve(message, top_k=3)
-        retrieval_used = bool(results and results[0].score >= RETRIEVAL_THRESHOLD)
-        knowledge = tuple(results) if retrieval_used else ()
-
-        activity: list[ToolActivityItem] = []
-        if retrieval_used:
-            activity.append(
-                ToolActivityItem(
-                    tool="knowledge_search",
-                    source="retrieval",
-                    status="success",
-                    summary=f"Found {len(results)} relevant knowledge chunk(s)",
-                )
-            )
+        strong_match = bool(results and results[0].score >= RETRIEVAL_THRESHOLD)
 
         system_prompt, qualification_prompt = load_prompts()
         context = ConversationContext(
             message=message,
             history=tuple(request.history),
-            knowledge=knowledge,
+            # Live prompts get knowledge only on a strong match; the mock
+            # policy decides for itself whether to consume it.
+            knowledge=tuple(results) if (strong_match or self._llm.mode == "mock") else (),
             accumulated=accumulate_extraction(message, request.history),
             system_prompt=system_prompt,
             qualification_prompt=qualification_prompt,
         )
 
+        activity: list[ToolActivityItem] = []
         served_mode: Literal["mock", "live"] = "live" if self._llm.mode == "live" else "mock"
         if isinstance(self._llm, OpenAILLMService):
+            retrieval_used = strong_match
             try:
                 reply, lead = await self._run_live(context, activity)
             except Exception as exc:  # noqa: BLE001 — spec section 57: any LLM failure degrades to mock
                 logger.warning("live LLM failed (%r); falling back to mock", exc)
                 served_mode = "mock"
-                reply, lead = await self._run_mock(context, activity)
+                reply, lead, retrieval_used = await self._run_mock(context, activity)
         else:
-            reply, lead = await self._run_mock(context, activity)
+            reply, lead, retrieval_used = await self._run_mock(context, activity)
+
+        if retrieval_used:
+            activity.insert(
+                0,
+                ToolActivityItem(
+                    tool="knowledge_search",
+                    source="retrieval",
+                    status="success",
+                    summary=f"Found {len(results)} relevant knowledge chunk(s)",
+                ),
+            )
 
         return ChatResponse(
             reply=reply,
@@ -116,12 +119,16 @@ class AgentService:
 
     async def _run_mock(
         self, context: ConversationContext, activity: list[ToolActivityItem]
-    ) -> tuple[str, LeadOut | None]:
-        """Deterministic policy + at most one tool call per turn."""
+    ) -> tuple[str, LeadOut | None, bool]:
+        """Deterministic policy + at most one tool call per turn.
+
+        Returns (reply, lead, used_knowledge) so the UI only reports
+        retrieval when the answer was actually grounded in it.
+        """
         mock = self._llm if isinstance(self._llm, MockLLMService) else MockLLMService()
         decision = mock.decide(context)
         if decision.reply is not None:
-            return decision.reply, None
+            return decision.reply, None, decision.used_knowledge
 
         tool = decision.tool_name or ""
         arguments = decision.tool_arguments or {}
@@ -135,6 +142,7 @@ class AgentService:
                 "I have all your details, but our lead-recording service is "
                 "temporarily unavailable. Please try again in a moment.",
                 None,
+                False,
             )
 
         activity.append(
@@ -142,7 +150,7 @@ class AgentService:
                 tool=tool, source="mcp", status="success", summary=_summarize(tool, result)
             )
         )
-        return _confirmation(tool, result), _lead_from_result(result)
+        return _confirmation(tool, result), _lead_from_result(result), False
 
     # ------------------------------------------------------------------ live
 
@@ -152,7 +160,7 @@ class AgentService:
         """Model-driven tool loop (OpenAI-compatible function calling)."""
         llm = self._llm
         if not isinstance(llm, OpenAILLMService):
-            return await self._run_mock(context, activity)
+            raise MCPUnavailableError("live loop requires the live LLM service")
 
         messages = self._build_messages(context)
         tools = await self._openai_tools()

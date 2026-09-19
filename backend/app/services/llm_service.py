@@ -70,12 +70,14 @@ _SEARCH_STOPWORDS = re.compile(
 class LLMDecision:
     """What the agent should do next: reply to the user, or call a tool.
 
-    Exactly one of ``reply`` / ``tool_name`` is set.
+    Exactly one of ``reply`` / ``tool_name`` is set. ``used_knowledge`` marks
+    replies grounded in retrieved knowledge (drives honest UI reporting).
     """
 
     reply: str | None = None
     tool_name: str | None = None
     tool_arguments: ToolArguments | None = None
+    used_knowledge: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,7 +154,10 @@ class MockLLMService:
             return self._search_decision(message)
 
         if _is_knowledge_question(message) and context.knowledge:
-            return LLMDecision(reply=self._answer_from_knowledge(context.knowledge[0]))
+            return LLMDecision(
+                reply=self._answer_from_knowledge(context.knowledge[0]),
+                used_knowledge=True,
+            )
 
         missing = lead.missing_for_creation()
         if not missing:
@@ -214,8 +219,10 @@ class MockLLMService:
 
     def _answer_from_knowledge(self, top: RetrievalResult) -> str:
         """Ground the reply in the best retrieved chunk (source of truth)."""
-        sentences = top.chunk.split("\n\n")[0]
-        body = " ".join(sentences.split())[:600]
+        lines = top.chunk.split("\n")
+        # Chunks are split on '## ' headings, so line 1 is the section title.
+        body_lines = lines[1:] if len(lines) > 1 else lines
+        body = " ".join(" ".join(body_lines).split())[:600]
         return (
             f"Based on our documentation ({top.document}): {body} "
             "Is there anything else you'd like to know?"
