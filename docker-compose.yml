@@ -1,0 +1,34 @@
+# Local two-process stack: backend + MCP server sharing one SQLite volume.
+# Usage: docker compose up --build
+# (Optional convenience — the project runs fine without Docker; see README.)
+services:
+  mcp:
+    build: .
+    command: python -m mcp_server.server
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8001"
+      AUTOM8R_DB_PATH: /data/autom8r.db
+    volumes:
+      - db-data:/data
+    ports:
+      - "8001:8001"
+
+  backend:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --app-dir backend
+    environment:
+      MCP_SERVER_URL: http://mcp:8001/mcp
+      DATABASE_URL: sqlite:////data/autom8r.db
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-change-me}
+      CORS_ORIGINS: http://localhost:5173
+    volumes:
+      - db-data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mcp
+
+volumes:
+  db-data:
