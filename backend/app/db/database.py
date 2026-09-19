@@ -48,6 +48,6 @@ def _set_sqlite_pragmas(dbapi_connection: object, _connection_record: object) ->
 def create_all_tables() -> None:
     """Create tables for every registered model (idempotent)."""
     # Import models so they register on Base.metadata before create_all.
-    from app.models import lead  # noqa: F401
+    from app.models import lead, webhook_event  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
