@@ -49,3 +49,5 @@ Thumbs.db
 
 # --- Agent tooling internals ---
 .omo/
+.playwright-mcp/
+tool-output/
